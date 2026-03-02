@@ -198,7 +198,7 @@ async def bulk_import_items(
         msg="批量导入任务已启动"
     )
 
-@router.get("/export", response_model=DataResponse[List[Item]])
+@router.get("/export")
 async def export_items(
     format: str = Query("csv", regex="^(csv|json)$", description="导出格式"),
     db: Session = Depends(get_db),
@@ -229,8 +229,6 @@ async def export_items(
         )
     else:
         # 返回JSON
-        return DataResponse(
-            data=items
-        )
+        return items
 
 from fastapi.responses import Response

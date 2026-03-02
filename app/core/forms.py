@@ -1,6 +1,7 @@
 from fastapi import Form, File, UploadFile, HTTPException
 from typing import Optional, List, Any, Type
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ValidationError, field_validator
+from app.core.validators import EmailValidator, PhoneValidator
 import json
 
 class FormMixin:
@@ -45,7 +46,7 @@ class RegistrationForm(BaseModel, FormMixin):
         cls,
         username: str = Form(..., min_length=3, max_length=50, description="用户名"),
         email: str = Form(..., description="电子邮箱"),
-        password: str = Form(..., min_length=8, description="密码"),
+        password: str = Form(..., min_length=6, description="密码"),
         confirm_password: str = Form(..., description="确认密码"),
         phone: Optional[str] = Form(None, description="手机号码"),
         agree_terms: bool = Form(..., description="同意条款")
@@ -58,17 +59,41 @@ class RegistrationForm(BaseModel, FormMixin):
             phone=phone,
             agree_terms=agree_terms
         )
+
+    @field_validator('email')
+    def validate_email(cls, v):
+        if not EmailValidator.validate_email_domain(v):
+            raise HTTPException(
+                status_code=400,
+                detail="无效的电子邮箱格式"
+            )
+        return v
     
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
         if 'password' in info.data and v != info.data['password']:
-            raise ValueError('两次输入的密码不一致')
+            raise HTTPException(
+                status_code=400,
+                detail="两次输入的密码不一致"
+            )
+        return v
+
+    @field_validator('phone')
+    def validate_phone(cls, v):
+        if v and not PhoneValidator.validate_chinese_phone(v):
+            raise HTTPException(
+                status_code=400,
+                detail="无效的手机号码"
+            )
         return v
     
     @field_validator('agree_terms')
     def terms_accepted(cls, v):
         if not v:
-            raise ValueError('必须同意服务条款')
+            raise HTTPException(
+                status_code=400,
+                detail="必须同意服务条款"
+            )
         return v
 
 class ItemForm(BaseModel, FormMixin):
@@ -104,12 +129,6 @@ class ItemForm(BaseModel, FormMixin):
             except:
                 return []
         return []
-    
-    @field_validator('price')
-    def validate_price(cls, v):
-        if v <= 0:
-            raise ValueError('价格必须大于0')
-        return v
 
 class ProfileForm(BaseModel, FormMixin):
     """用户资料表单"""
@@ -125,7 +144,7 @@ class ProfileForm(BaseModel, FormMixin):
         full_name: Optional[str] = Form(None, max_length=100, description="姓名"),
         bio: Optional[str] = Form(None, max_length=500, description="个人简介"),
         birth_date: Optional[str] = Form(None, description="出生日期（YYYY-MM-DD）"),
-        gender: Optional[str] = Form(None, pattern="^(男|女|其他)$", description="性别"),
+        gender: Optional[str] = Form(None, regex="^(男|女|其他)$", description="性别"),
         address: Optional[str] = Form(None, max_length=200, description="地址")
     ):
         return cls(
@@ -154,8 +173,8 @@ class SearchForm(BaseModel, FormMixin):
         category: Optional[str] = Form(None, description="商品分类"),
         min_price: Optional[float] = Form(None, ge=0, description="最低价格"),
         max_price: Optional[float] = Form(None, ge=0, description="最高价格"),
-        sort_by: str = Form("created_at", description="排序字段"),
-        sort_order: str = Form("desc", description="排序方式"),
+        sort_by: str = Form("created_at", regex="^(created_at|price|title)$", description="排序字段"),
+        sort_order: str = Form("desc", regex="^(asc|desc)$", description="排序方式"),
         page: int = Form(1, ge=1, description="页码"),
         page_size: int = Form(20, ge=1, le=100, description="每页数量")
     ):
@@ -169,13 +188,6 @@ class SearchForm(BaseModel, FormMixin):
             page=page,
             page_size=page_size
         )
-    
-    @model_validator(mode='after')
-    def validate_price_range(self):
-        if self.min_price is not None and self.max_price is not None:
-            if self.min_price > self.max_price:
-                raise ValueError('最低价格不能高于最高价格')
-        return self
 
 # 文件上传表单助手
 class FileUploadForm:
@@ -198,7 +210,6 @@ class FileUploadForm:
             )
         
         # 验证文件大小
-        import os
         file.file.seek(0, 2)
         file_size = file.file.tell()
         file.file.seek(0)
@@ -222,7 +233,6 @@ class FileUploadForm:
         
         processed_files = []
         for file in files:
-            from app.core.validators import FileValidator
             await FileUploadForm.validate_upload(
                 file,
                 FileValidator.ALLOWED_IMAGE_EXTENSIONS

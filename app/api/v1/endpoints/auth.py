@@ -80,35 +80,37 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=DataResponse[UserResponse])
 async def register(
     form_data: RegistrationForm = Depends(RegistrationForm.as_form),
     db: Session = Depends(get_db)
 ) -> Any:
     """用户注册（表单方式）"""
+
+    
     # 检查用户名是否存在
     user = UserService.get_user_by_username(db, username=form_data.username)
     if user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="用户名已存在"
+        return ErrorResponse(
+            code=1000,
+            msg="用户名已存在"
         )
     
     # 检查邮箱是否存在
     user = UserService.get_user_by_email(db, email=form_data.email)
     if user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="邮箱已被注册"
+        return ErrorResponse(
+            code=1001,
+            msg="邮箱已被注册"
         )
     
     # 检查手机号是否存在
     if form_data.phone:
         user = UserService.get_user_by_phone(db, phone=form_data.phone)
         if user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="手机号已被注册"
+            return ErrorResponse(
+                code=1002,
+                msg="手机号已被注册"
             )
     
     # 创建用户
@@ -122,7 +124,9 @@ async def register(
     )
     
     user = UserService.create_user(db, user_in)
-    return user
+    return DataResponse(
+        data=user
+    )
 
 @router.post("/login/form", response_model=DataResponse[TokenResponse])
 async def login_form(
@@ -137,13 +141,13 @@ async def login_form(
     if not user:
         print(user)
         return ErrorResponse(
-            code=1001,
+            code=1003,
             msg="用户名或密码错误"
         )
 
     if not user.is_active:
         return ErrorResponse(
-            code=1002,
+            code=1004,
             msg="用户已被禁用"
         )
       
@@ -168,13 +172,13 @@ async def login(
     )
     if not user:
         return ErrorResponse(
-            code=1001,
+            code=1003,
             msg="用户名或密码错误"
         )
     
     if not user.is_active:
         return ErrorResponse(
-            code=1002,
+            code=1004,
             msg="用户已被禁用"
         )
     
@@ -226,7 +230,7 @@ async def change_password(
     # 验证旧密码
     if not verify_password(password_data.old_password, current_user.hashed_password):
         return ErrorResponse(
-            code=1003,
+            code=1005,
             msg="旧密码错误"
         )
     
@@ -237,7 +241,7 @@ async def change_password(
     
     if not success:
         return ErrorResponse(
-            code=1004,
+            code=1006,
             msg="密码修改失败"
         )
     
@@ -290,7 +294,7 @@ async def reset_password(
         user_id = int(payload.get("sub"))
     except JWTError:
         return ErrorResponse(
-            code=1005,
+            code=1007,
             msg="无效或已过期的重置令牌"
         )
     
@@ -325,7 +329,7 @@ async def verify_phone(
     # 验证手机号格式
     if not PhoneValidator.validate_chinese_phone(verification.phone):
         return ErrorResponse(
-            code=1007,
+            code=1008,
             msg="无效的手机号码"
         )
     
@@ -356,7 +360,7 @@ async def read_user(
     user = UserService.get_user(db, user_id)
     if not user:
         return ErrorResponse(
-            code=1008,
+            code=1009,
             msg="用户不存在"
         )
     return DataResponse(
@@ -373,14 +377,14 @@ async def delete_user(
     # 不能删除自己
     if user_id == current_user.id:
         return ErrorResponse(
-            code=1009,
+            code=1010,
             msg="不能删除自己的账号"
         )
     
     success = UserService.delete_user(db, user_id)
     if not success:
         return ErrorResponse(
-            code=1008,
+            code=1009,
             msg="用户不存在"
         )
     

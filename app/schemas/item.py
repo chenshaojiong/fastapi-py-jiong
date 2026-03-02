@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator, HttpUrl
+from pydantic import BaseModel, Field, field_validator, HttpUrl
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -28,27 +28,39 @@ class ItemBase(BaseModel):
     images: List[str] = Field(default=[], description="商品图片URL")
     attributes: Dict[str, Any] = Field(default={}, description="商品属性")
     
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         # 标题不能全是空格
         if not v.strip():
-            raise ValueError('标题不能为空')
+            raise HTTPException(
+                status_code=400,
+                detail="标题不能为空"
+            )
         return v.strip()
     
-    @validator('tags')
+    @field_validator('tags')
     def validate_tags(cls, v):
         # 验证标签格式
         if len(v) > 10:
-            raise ValueError('最多只能添加10个标签')
+            raise HTTPException(
+                status_code=400,
+                detail="最多只能添加10个标签"
+            )
         for tag in v:
             if len(tag) > 20:
-                raise ValueError('单个标签不能超过20个字符')
+                raise HTTPException(
+                    status_code=400,
+                    detail="单个标签不能超过20个字符"
+                )
         return v
     
-    @validator('images')
+    @field_validator('images')
     def validate_images(cls, v):
         if len(v) > 9:
-            raise ValueError('最多只能上传9张图片')
+            raise HTTPException(
+                status_code=400,
+                detail="最多只能上传9张图片"
+            )
         return v
 
 class ItemCreate(ItemBase):
@@ -65,10 +77,13 @@ class ItemUpdate(BaseModel):
     images: Optional[List[str]] = Field(None, description="商品图片URL")
     attributes: Optional[Dict[str, Any]] = Field(None, description="商品属性")
     
-    @validator('title')
+    @field_validator('title')
     def validate_title(cls, v):
         if v is not None and not v.strip():
-            raise ValueError('标题不能为空')
+            raise HTTPException(
+                status_code=400,
+                detail="标题不能为空"
+            )
         return v.strip() if v else v
 
 class ItemInDB(ItemBase):
@@ -106,11 +121,14 @@ class ItemSearchParams(BaseModel):
     page: int = Field(1, ge=1, description="页码")
     page_size: int = Field(20, ge=1, le=100, description="每页数量")
     
-    @validator('max_price')
-    def validate_price_range(cls, v, values, **kwargs):
-        if v is not None and 'min_price' in values and values['min_price'] is not None:
-            if v < values['min_price']:
-                raise ValueError('最高价格不能低于最低价格')
+    @field_validator('max_price')
+    def validate_price_range(cls, v, info):
+        if v is not None and 'min_price' in info.data and info.data['min_price'] is not None:
+            if v < info.data['min_price']:
+                raise HTTPException(
+                    status_code=400,
+                    detail="最高价格不能低于最低价格"
+                )
         return v
 
 class ItemFavorite(BaseModel):

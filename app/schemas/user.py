@@ -19,13 +19,15 @@ class UserBase(BaseModel):
     @field_validator('username')
     def validate_username(cls, v):
         if not UsernameValidator.validate_username(v):
-            raise ValueError(UsernameValidator.get_username_requirements())
-        return v
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg=UsernameValidator.get_username_requirements(), code=-1).model_dump_json())
+        return v   
     
     @field_validator('phone')
     def validate_phone(cls, v):
         if v and not PhoneValidator.validate_chinese_phone(v):
-            raise ValueError("无效的手机号码")
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg="无效的手机号码", code=-1).model_dump_json())
         return v
     
     @field_validator('birth_date')
@@ -37,7 +39,8 @@ class UserBase(BaseModel):
                 age -= 1
             
             if age < 18 or age > 100:
-                raise ValueError("年龄必须在18-100岁之间")
+                from app.schemas.response import ErrorResponse
+                raise ValueError(ErrorResponse(msg="年龄必须在18-100岁之间", code=-1).model_dump_json())
         return v
 
 # 用户更新
@@ -53,7 +56,8 @@ class UserUpdate(BaseModel):
     @field_validator('phone')
     def validate_phone(cls, v):
         if v and not PhoneValidator.validate_chinese_phone(v):
-            raise ValueError("无效的手机号码")
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg="无效的手机号码", code=-1).model_dump_json())
         return v
 
 # 用户创建（注册）
@@ -65,19 +69,22 @@ class UserCreate(UserBase):
     @field_validator('password')
     def validate_password_strength(cls, v):
         if not PasswordValidator.validate_password_strength(v):
-            raise ValueError(PasswordValidator.get_password_requirements())
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg=PasswordValidator.get_password_requirements(), code=-1).model_dump_json())
         return v
     
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
         if 'password' in info.data and v != info.data['password']:
-            raise ValueError('两次输入的密码不一致')
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg='两次输入的密码不一致', code=-1).model_dump_json())
         return v
     
     @field_validator('agree_terms')
     def terms_accepted(cls, v):
         if not v:
-            raise ValueError('必须同意服务条款')
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg='必须同意服务条款', code=-1).model_dump_json())
         return v
 
 
@@ -90,13 +97,15 @@ class PasswordChange(BaseModel):
     @field_validator('new_password')
     def validate_new_password(cls, v):
         if not PasswordValidator.validate_password_strength(v):
-            raise ValueError(PasswordValidator.get_password_requirements())
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg=PasswordValidator.get_password_requirements(), code=-1).model_dump_json())
         return v
     
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
         if 'new_password' in info.data and v != info.data['new_password']:
-            raise ValueError('两次输入的新密码不一致')
+            from app.schemas.response import ErrorResponse
+            raise ValueError(ErrorResponse(msg='两次输入的新密码不一致', code=-1).model_dump_json())
         return v
 
 # 用户登录
@@ -118,7 +127,10 @@ class PhoneVerification(BaseModel):
     @field_validator('phone')
     def validate_phone(cls, v):
         if not PhoneValidator.validate_chinese_phone(v):
-            raise ValueError("无效的手机号码")
+            raise HTTPException(
+                status_code=400,
+                detail="无效的手机号码"
+            )
         return v
 
 # 密码重置请求
@@ -129,13 +141,19 @@ class PasswordResetRequest(BaseModel):
     @field_validator('phone')
     def validate_phone(cls, v):
         if v and not PhoneValidator.validate_chinese_phone(v):
-            raise ValueError("无效的手机号码")
+            raise HTTPException(
+                status_code=400,
+                detail="无效的手机号码"
+            )
         return v
     
     @model_validator(mode='after')
     def check_at_least_one(self):
         if not self.email and not self.phone:
-            raise ValueError('必须提供邮箱或手机号')
+            raise HTTPException(
+                status_code=400,
+                detail="必须提供邮箱或手机号"
+            )
         return self
 
 # 密码重置
@@ -147,13 +165,19 @@ class PasswordReset(BaseModel):
     @field_validator('new_password')
     def validate_new_password(cls, v):
         if not PasswordValidator.validate_password_strength(v):
-            raise ValueError(PasswordValidator.get_password_requirements())
+            raise HTTPException(
+                status_code=400,
+                detail=PasswordValidator.get_password_requirements()
+            )
         return v
     
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
         if 'new_password' in info.data and v != info.data['new_password']:
-            raise ValueError('两次输入的新密码不一致')
+            raise HTTPException(
+                status_code=400,
+                detail="两次输入的新密码不一致"
+            )
         return v
 
 # 数据库中的用户模型（响应）
