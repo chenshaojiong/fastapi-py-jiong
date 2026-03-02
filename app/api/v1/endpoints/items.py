@@ -83,7 +83,7 @@ async def create_item(
     item_response = ItemResponse.model_validate(item)
     item_response.owner_username = current_user.username
     
-    return SuccessResponse(
+    return DataResponse[ItemResponse](
         data=item_response
     )
 

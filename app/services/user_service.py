@@ -62,7 +62,7 @@ class UserService:
     @staticmethod
     def authenticate_user(db: Session, username: str, password: str) -> Optional[User]:
         user = UserService.get_user_by_username(db, username)
-        print(user.hashed_password)
+       
         if not user:
             return None
         if not verify_password(password, user.hashed_password):

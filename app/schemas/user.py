@@ -3,7 +3,7 @@ from typing import Optional
 from datetime import datetime, date
 from app.core.validators import (
     PasswordValidator, PhoneValidator, 
-    UsernameValidator
+    UsernameValidator, EmailValidator
 )
 
 # 基础用户模型
