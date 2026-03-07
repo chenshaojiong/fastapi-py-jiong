@@ -2,6 +2,7 @@ import re
 from typing import Optional, Any
 from pydantic import BaseModel, Field, validator, EmailStr
 from datetime import datetime, date
+from fastapi import HTTPException
 
 class PasswordValidator:
     """密码验证器"""
@@ -198,7 +199,7 @@ def validate_password_strength(field: str = "password"):
         @validator(field)
         def validate_password(cls, v):
             if not PasswordValidator.validate_password_strength(v):
-                raise ValueError(PasswordValidator.get_password_requirements())
+                raiseValidateException(PasswordValidator.get_password_requirements())
             return v
         
         setattr(cls, f"_validate_{field}_strength", validate_password)
@@ -212,7 +213,7 @@ def validate_phone_number(field: str = "phone"):
         @validator(field)
         def validate_phone(cls, v):
             if v and not PhoneValidator.validate_chinese_phone(v):
-                raise ValueError("无效的手机号码")
+                raiseValidateException("无效的手机号码")
             return v
         return cls
     return decorator
@@ -223,44 +224,15 @@ def validate_username_format(field: str = "username"):
         @validator(field)
         def validate_username(cls, v):
             if not UsernameValidator.validate_username(v):
-                raise ValueError(UsernameValidator.get_username_requirements())
+                raiseValidateException(UsernameValidator.get_username_requirements())
             return v
         return cls
     return decorator
 
-    # 更新自定义Pydantic验证器装饰器
-def validate_password_strength(field: str = "password"):
-    """密码强度验证装饰器"""
-    def decorator(cls):
-        @field_validator(field)
-        def validate_password(cls, v):
-            if not PasswordValidator.validate_password_strength(v):
-                raise ValueError(PasswordValidator.get_password_requirements())
-            return v
-        
-        setattr(cls, f"_validate_{field}_strength", validate_password)
-        return cls
-    
-    return decorator
-
-def validate_phone_number(field: str = "phone"):
-    """手机号验证装饰器"""
-    def decorator(cls):
-        @field_validator(field)
-        def validate_phone(cls, v):
-            if v and not PhoneValidator.validate_chinese_phone(v):
-                raise ValueError("无效的手机号码")
-            return v
-        return cls
-    return decorator
-
-def validate_username_format(field: str = "username"):
-    """用户名格式验证装饰器"""
-    def decorator(cls):
-        @field_validator(field)
-        def validate_username(cls, v):
-            if not UsernameValidator.validate_username(v):
-                raise ValueError(UsernameValidator.get_username_requirements())
-            return v
-        return cls
-    return decorator
+   
+def raiseValidateException( msg: str):
+    """抛出验证异常"""
+    raise HTTPException(
+                status_code=400,
+                detail=msg
+            )

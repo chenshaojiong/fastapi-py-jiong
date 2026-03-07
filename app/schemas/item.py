@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, field_validator, HttpUrl
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
+from app.core.validators import raiseValidateException
 
 class ItemStatus(str, Enum):
     DRAFT = "draft"
@@ -32,35 +33,23 @@ class ItemBase(BaseModel):
     def validate_title(cls, v):
         # 标题不能全是空格
         if not v.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="标题不能为空"
-            )
+            raiseValidateException("标题不能为空")
         return v.strip()
     
     @field_validator('tags')
     def validate_tags(cls, v):
         # 验证标签格式
         if len(v) > 10:
-            raise HTTPException(
-                status_code=400,
-                detail="最多只能添加10个标签"
-            )
+            raiseValidateException("最多只能添加10个标签")
         for tag in v:
             if len(tag) > 20:
-                raise HTTPException(
-                    status_code=400,
-                    detail="单个标签不能超过20个字符"
-                )
+                raiseValidateException("单个标签不能超过20个字符")
         return v
     
     @field_validator('images')
     def validate_images(cls, v):
         if len(v) > 9:
-            raise HTTPException(
-                status_code=400,
-                detail="最多只能上传9张图片"
-            )
+            raiseValidateException("最多只能上传9张图片")
         return v
 
 class ItemCreate(ItemBase):
@@ -80,10 +69,7 @@ class ItemUpdate(BaseModel):
     @field_validator('title')
     def validate_title(cls, v):
         if v is not None and not v.strip():
-            raise HTTPException(
-                status_code=400,
-                detail="标题不能为空"
-            )
+            raiseValidateException("标题不能为空")
         return v.strip() if v else v
 
 class ItemInDB(ItemBase):
@@ -125,10 +111,7 @@ class ItemSearchParams(BaseModel):
     def validate_price_range(cls, v, info):
         if v is not None and 'min_price' in info.data and info.data['min_price'] is not None:
             if v < info.data['min_price']:
-                raise HTTPException(
-                    status_code=400,
-                    detail="最高价格不能低于最低价格"
-                )
+                raiseValidateException("最高价格不能低于最低价格")
         return v
 
 class ItemFavorite(BaseModel):

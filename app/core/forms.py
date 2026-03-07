@@ -3,6 +3,7 @@ from typing import Optional, List, Any, Type
 from pydantic import BaseModel, ValidationError, field_validator
 from app.core.validators import EmailValidator, PhoneValidator
 import json
+from app.core.validators import raiseValidateException
 
 class FormMixin:
     """表单混入类，用于处理表单数据"""
@@ -63,37 +64,25 @@ class RegistrationForm(BaseModel, FormMixin):
     @field_validator('email')
     def validate_email(cls, v):
         if not EmailValidator.validate_email_domain(v):
-            raise HTTPException(
-                status_code=400,
-                detail="无效的电子邮箱格式"
-            )
+           raiseValidateException("无效的电子邮箱格式")
         return v
     
     @field_validator('confirm_password')
     def passwords_match(cls, v, info):
         if 'password' in info.data and v != info.data['password']:
-            raise HTTPException(
-                status_code=400,
-                detail="两次输入的密码不一致"
-            )
+           raiseValidateException("两次输入的密码不一致")
         return v
 
     @field_validator('phone')
     def validate_phone(cls, v):
         if v and not PhoneValidator.validate_chinese_phone(v):
-            raise HTTPException(
-                status_code=400,
-                detail="无效的手机号码"
-            )
+            raiseValidateException("无效的手机号码")
         return v
     
     @field_validator('agree_terms')
     def terms_accepted(cls, v):
         if not v:
-            raise HTTPException(
-                status_code=400,
-                detail="必须同意服务条款"
-            )
+            raiseValidateException("必须同意服务条款") 
         return v
 
 class ItemForm(BaseModel, FormMixin):
@@ -204,10 +193,7 @@ class FileUploadForm:
         
         # 验证文件扩展名
         if not FileValidator.validate_file_extension(file.filename, allowed_extensions):
-            raise HTTPException(
-                status_code=400,
-                detail=f"不支持的文件类型。允许的类型: {allowed_extensions}"
-            )
+            raiseValidateException(f"不支持的文件类型。允许的类型: {allowed_extensions}")
         
         # 验证文件大小
         file.file.seek(0, 2)
@@ -215,10 +201,7 @@ class FileUploadForm:
         file.file.seek(0)
         
         if not FileValidator.validate_file_size(file_size, max_size):
-            raise HTTPException(
-                status_code=400,
-                detail=f"文件太大。最大允许: {max_size / 1024 / 1024}MB"
-            )
+            raiseValidateException(f"文件太大。最大允许: {max_size / 1024 / 1024}MB")
         
         return True
     
@@ -226,10 +209,7 @@ class FileUploadForm:
     async def process_images(files: List[UploadFile], max_files: int = 5):
         """处理多图片上传"""
         if len(files) > max_files:
-            raise HTTPException(
-                status_code=400,
-                detail=f"最多只能上传 {max_files} 张图片"
-            )
+            raiseValidateException(f"最多只能上传 {max_files} 张图片")
         
         processed_files = []
         for file in files:

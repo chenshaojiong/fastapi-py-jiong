@@ -26,6 +26,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
         content=ErrorResponse(msg="服务器内部错误", code=status.HTTP_500_INTERNAL_SERVER_ERROR).model_dump(),
     )
 
+def raiseValidateException( msg: str):
+    """抛出验证异常"""
+    raise HTTPException(
+                status_code=400,
+                detail=msg
+            )
+
 def register_exception_handlers(app: FastAPI):
     app.add_exception_handler(Exception, generic_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)

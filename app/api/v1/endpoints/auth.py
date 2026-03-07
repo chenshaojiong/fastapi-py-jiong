@@ -20,6 +20,7 @@ from app.services.user_service import UserService
 from app.models.user import User
 from app.core.validators import EmailValidator, PhoneValidator
 from app.core.dependencies import ResponseHandler
+from app.core.validators import raiseValidateException
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
@@ -58,10 +59,7 @@ async def get_current_active_user(
 ) -> User:
     """获取当前活跃用户"""
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="用户已被禁用"
-        )
+        raiseValidateException("用户已被禁用")
     return current_user
 
 # 依赖项：获取当前超级用户
@@ -70,10 +68,7 @@ async def get_current_superuser(
 ) -> User:
     """获取当前超级用户"""
     if not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="没有足够的权限"
-        )
+        raiseValidateException("没有足够的权限")
     return current_user
 
 class TokenResponse(BaseModel):
@@ -91,10 +86,7 @@ async def register(
     # 检查用户名是否存在
     user = UserService.get_user_by_username(db, username=form_data.username)
     if user:
-        return ErrorResponse(
-            code=1000,
-            msg="用户名已存在"
-        )
+        raiseValidateException("用户名已存在")
     
     # 检查邮箱是否存在
     user = UserService.get_user_by_email(db, email=form_data.email)
